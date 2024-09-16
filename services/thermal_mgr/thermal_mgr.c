@@ -2,7 +2,7 @@
 #include "errors.h"
 #include "lm75bd.h"
 #include "console.h"
-
+#include "logging.h"
 
 #include <FreeRTOS.h>
 #include <os_task.h>
@@ -56,32 +56,46 @@ error_code_t thermalMgrSendEvent(thermal_mgr_event_t *event) {
  /* Send an event to the thermal manager queue */
  if(event==NULL)return ERR_CODE_INVALID_ARG;        //if invalid argument
  if(thermalMgrQueueHandle==NULL)return ERR_CODE_INVALID_STATE;      //fail if thermalmgrqueuehandle doesnt work
- if(xQueueSend(thermalMgrQueueHandle,event,0)==errQUEUE_FULL) return ERR_CODE_QUEUE_FULL;   //fail if queue is full
+ if(xQueueSend(thermalMgrQueueHandle,event,0)==pdPASS) return ERR_CODE_QUEUE_FULL;   //if queue is full
  return ERR_CODE_SUCCESS;
 }
 
 
 void osHandlerLM75BD(void) {
  /* Implement this function */
- thermal_mgr_event_t event = {.type=THERMAL_MGR_EVENT_STOP};
+ thermal_mgr_event_t event = {.type=THERMAL_MGR_EVENT_OVER_TEMP_RECEIVED};
  thermalMgrSendEvent(&event);
 }
 
 
 static void thermalMgr(void *pvParameters) {
- /* Implement this task */
- while (1) {
-   thermal_mgr_event_t event;
-   float tempval;
-   if (xQueueReceive(thermalMgrQueueHandle,&event,portMAX_DELAY)==pdTRUE && readTempLM75BD(LM75BD_OBC_I2C_ADDR,&tempval)==ERR_CODE_SUCCESS){
-     if(event.type==THERMAL_MGR_EVENT_MEASURE_TEMP_CMD) addTemperatureTelemetry(tempval);
-     else if(event.type==THERMAL_MGR_EVENT_STOP){
-       if (tempval >= 80.0f) overTemperatureDetected();   
-       if (tempval <= 75.0f) safeOperatingConditions();
-     }
-   }
- }
+  /* Implement this task */
+  while (1) {
+    thermal_mgr_event_t event;
+    float tempval;
+    if (xQueueReceive(thermalMgrQueueHandle, &event, portMAX_DELAY) == pdTRUE) {
+      // Only read the temperature when the event type is THERMAL_MGR_EVENT_MEASURE_TEMP_CMD
+      if (event.type == THERMAL_MGR_EVENT_MEASURE_TEMP_CMD) {
+        readTempLM75BD(LM75BD_OBC_I2C_ADDR, &tempval);
+        addTemperatureTelemetry(tempval);
+      } 
+      else if (event.type == THERMAL_MGR_EVENT_OVER_TEMP_RECEIVED) {
+        readTempLM75BD(LM75BD_OBC_I2C_ADDR, &tempval);
+        if (tempval >= LM75BD_DEFAULT_OT_THRESH) {
+          overTemperatureDetected();
+        }
+        if (tempval <= LM75BD_DEFAULT_HYST_THRESH) {
+          safeOperatingConditions();
+        }
+      }
+      else{
+        LOG_ERROR("Invalid event received");
+      }
+    }
+  }
 }
+
+
 
 
 void addTemperatureTelemetry(float tempC) {

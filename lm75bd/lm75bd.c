@@ -35,25 +35,27 @@ error_code_t lm75bdInit(lm75bd_config_t *config) {
 
 error_code_t readTempLM75BD(uint8_t devAddr, float *temp) {
  /* Implement this driver function */
- if (temp==NULL) return ERR_CODE_INVALID_ARG;
+  error_code_t errCode;
+  if (temp==NULL) return ERR_CODE_INVALID_ARG;
+  
+
+  uint8_t addr=0x0U; //tempregister address
+  //int16_t buf=0;
+  int8_t buf[2]={0};
+
+  RETURN_IF_ERROR_CODE(i2cSendTo(devAddr,&addr,1)); // select sensor temp register
+
+  RETURN_IF_ERROR_CODE(i2cReceiveFrom(devAddr,(uint8_t*)&buf,2)); //get temp data (2 bytes)
 
 
- uint8_t addr=0x0U; //tempregister address
- int16_t buf=0;
+  //buf=(buf >> 8) | (buf << 8);//combine msb and lsb
+  int16_t rawTemp=(buf[0]<<8)|(uint8_t)buf[1];
 
+  //int16_t temperature=buf >> 5; //store temp in temperature
+  int16_t temperature=rawTemp>>5;
 
- i2cSendTo(devAddr,&addr,1); // select sensor temp register
- i2cReceiveFrom(devAddr,(uint8_t*)&buf,2); //get temp data (2 bytes)
-
-
- buf=(buf >> 8) | (buf << 8);//combine msb and lsb
-
-
- int16_t temperature=buf >> 5; //store temp in temperature
-
-
- *temp=temperature*0.125;
- return ERR_CODE_SUCCESS;
+  *temp=temperature*0.125f;
+  return ERR_CODE_SUCCESS;
 }
 
 
