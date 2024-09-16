@@ -45,7 +45,7 @@ error_code_t readTempLM75BD(uint8_t devAddr, float *temp) {
 
   RETURN_IF_ERROR_CODE(i2cSendTo(devAddr,&addr,1)); // select sensor temp register
 
-  RETURN_IF_ERROR_CODE(i2cReceiveFrom(devAddr,(uint8_t*)&buf,2)); //get temp data (2 bytes)
+  RETURN_IF_ERROR_CODE(i2cReceiveFrom(devAddr,(uint8_t*)&buf,sizeof(buf))); //get temp data (2 bytes)
 
 
   //buf=(buf >> 8) | (buf << 8);//combine msb and lsb
