@@ -96,7 +96,7 @@ static void thermalMgr(void *pvParameters) {
         if (tempval <= LM75BD_DEFAULT_HYST_THRESH) {
           safeOperatingConditions();
         }
-      }
+      }//
       else{
         error_code_t errCode=ERR_CODE_INVALID_EVENT;
         LOG_IF_ERROR_CODE(errCode);
